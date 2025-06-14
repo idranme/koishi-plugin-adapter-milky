@@ -73,6 +73,13 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
           uri
         }
       })
+    } else if (type === 'quote') {
+      this.segments.push({
+        type: 'reply',
+        data: {
+          message_seq: +attrs.id
+        }
+      })
     } else {
       await this.render(children)
     }
