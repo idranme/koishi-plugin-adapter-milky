@@ -1,5 +1,5 @@
 import { Context, Universal, h, Session } from 'koishi'
-import { Event, Events, Friend, Group, LoginInfo, GroupMember } from './types'
+import { Event, Events, Friend, Group, LoginInfo, GroupMember, IncomingMessage } from './types'
 import { MilkyBot } from './bot'
 
 export function decodeGuild(group: Group): Universal.Guild {
@@ -39,7 +39,7 @@ export function decodeLoginUser(user: LoginInfo): Universal.User {
   }
 }
 
-export function decodeGuildChannelId(data: Events['message_receive']): [string | undefined, string] {
+export function decodeGuildChannelId(data: IncomingMessage): [string | undefined, string] {
   if (data.message_scene === 'group') {
     return [String(data.peer_id), String(data.peer_id)]
   } else if (data.message_scene === 'temp') {
@@ -49,13 +49,16 @@ export function decodeGuildChannelId(data: Events['message_receive']): [string |
   }
 }
 
-export function adaptMessage<C extends Context = Context>(
+export async function decodeMessage<C extends Context = Context>(
   bot: MilkyBot<C>,
-  data: Events['message_receive'],
-  session: Session,
+  input: IncomingMessage,
+  message: Universal.Message = {},
+  payload: Universal.MessageLike = message
 ) {
+  const [guildId, channelId] = decodeGuildChannelId(input)
+
   const elements: h[] = []
-  for (const segment of data.segments) {
+  for (const segment of input.segments) {
     const { type, data } = segment
     switch (type) {
       case 'text':
@@ -66,6 +69,9 @@ export function adaptMessage<C extends Context = Context>(
         break
       case 'mention_all':
         elements.push(h('at', { type: 'all' }))
+        break
+      case 'reply':
+        message.quote = await bot.getMessage(channelId, data.message_seq.toString())
         break
       case 'image':
         elements.push(h.image(data.temp_url))
@@ -79,32 +85,33 @@ export function adaptMessage<C extends Context = Context>(
     }
   }
 
-  session.elements = elements
-  session.timestamp = data.time * 1000
-  session.messageId = data.message_seq.toString()
+  message.elements = elements
+  message.content = elements.join('')
+  message.id = input.message_seq.toString()
 
-  const [guildId, channelId] = decodeGuildChannelId(data)
-  session.event.channel = {
+  payload.channel = {
     id: channelId,
-    name: guildId ? data.group.name : data.friend?.nickname,
+    name: guildId ? input.group.name : input.friend?.nickname,
     type: guildId ? Universal.Channel.Type.TEXT : Universal.Channel.Type.DIRECT
   }
-  session.event.guild = guildId && {
+  payload.guild = guildId && {
     id: guildId,
-    name: data.group.name,
+    name: input.group.name,
     avatar: `https://p.qlogo.cn/gh/${guildId}/${guildId}/640`
   }
-  session.event.user = {
-    id: data.sender_id.toString(),
-    name: guildId ? data.group_member.nickname : data.friend?.nickname,
-    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${data.sender_id}&spec=640`
+  payload.user = {
+    id: input.sender_id.toString(),
+    name: guildId ? input.group_member.nickname : input.friend?.nickname,
+    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`
   }
-  session.event.member = guildId && {
-    user: session.event.user,
-    nick: data.group_member.card || data.group_member.nickname,
-    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${data.sender_id}&spec=640`,
-    joinedAt: data.group_member.join_time * 1000
+  payload.member = guildId && {
+    user: payload.user,
+    nick: input.group_member.card || input.group_member.nickname,
+    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`,
+    joinedAt: input.group_member.join_time * 1000
   }
+  payload.timestamp = input.time * 1000
+  return message
 }
 
 export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Event) {
@@ -114,7 +121,7 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
   switch (body.event_type) {
     case 'message_receive':
       session.type = 'message'
-      adaptMessage(bot, body.data, session)
+      await decodeMessage(bot, body.data, session.event.message = {}, session.event)
       break
   }
 

@@ -1,7 +1,7 @@
 import { Bot, Context, Schema, HTTP, Dict } from 'koishi'
 import { WsClient } from './ws'
 import { MilkyMessageEncoder } from './message'
-import { decodeGuild, decodeGuildMember, decodeLoginUser, decodeUser } from './utils'
+import { decodeGuild, decodeGuildMember, decodeLoginUser, decodeMessage, decodeUser } from './utils'
 import { Internal } from './internal'
 
 export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Config> {
@@ -60,6 +60,23 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
   async getFriendList(next?: string) {
     const data = await this.internal.getFriendList()
     return { data: data.friends.map(decodeUser) }
+  }
+
+  async getMessage(channelId: string, messageId: string) {
+    let scene: string
+    let peerId: number
+    if (channelId.startsWith('private:temp_')) {
+      scene = 'temp'
+      peerId = +channelId.replace('private:temp_', '')
+    } else if (channelId.startsWith('private:')) {
+      scene = 'friend'
+      peerId = +channelId.replace('private:', '')
+    } else {
+      scene = 'group'
+      peerId = +channelId
+    }
+    const data = await this.internal.getMessage(scene, peerId, +messageId)
+    return await decodeMessage(this, data.message)
   }
 }
 

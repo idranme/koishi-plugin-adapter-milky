@@ -33,7 +33,7 @@ export class Internal {
     return await this.#request<{ member: Milky.GroupMember }>('/api/get_group_member_info', { group_id, user_id, no_cache })
   }
 
-  async getFriendList(no_cache?: boolean){
+  async getFriendList(no_cache?: boolean) {
     return await this.#request<{ friends: Milky.Friend[] }>('/api/get_friend_list', { no_cache })
   }
 
@@ -50,5 +50,9 @@ export class Internal {
       message_seq: number,
       time: number
     }>('/api/send_group_message', { group_id, message })
+  }
+
+  async getMessage(message_scene: string, peer_id: number, message_seq: number) {
+    return await this.#request<{ message: Milky.IncomingMessage }>('/api/get_message', { message_scene, peer_id, message_seq })
   }
 }
