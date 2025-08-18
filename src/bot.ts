@@ -63,7 +63,7 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
   }
 
   async getMessage(channelId: string, messageId: string) {
-    let scene: string
+    let scene: 'friend' | 'group' | 'temp'
     let peerId: number
     if (channelId.startsWith('private:temp_')) {
       scene = 'temp'

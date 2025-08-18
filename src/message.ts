@@ -1,11 +1,11 @@
-import { Context, Dict, h, MessageEncoder } from 'koishi'
+import { Context, h, MessageEncoder } from 'koishi'
 import { MilkyBot } from './bot'
-import { Segment } from './types'
+import { OutgoingSegment } from '@saltify/milky-types'
 
 export const PRIVATE_PFX = 'private:'
 
 export class MilkyMessageEncoder<C extends Context = Context> extends MessageEncoder<C, MilkyBot<C>> {
-  private segments: Segment[] = []
+  private segments: OutgoingSegment[] = []
 
   async flush() {
     let resp: { message_seq: number, time: number, client_seq?: number }

@@ -1,7 +1,7 @@
 import { Adapter, Schema, Context } from 'koishi'
 import { MilkyBot } from './bot'
 import { adaptSession } from './utils'
-import { Event } from './types'
+import { Event } from '@saltify/milky-types'
 
 export class WsClient<C extends Context = Context> extends Adapter.WsClient<C, MilkyBot<C>> {
   async prepare() {

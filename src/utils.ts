@@ -1,16 +1,16 @@
-import { Context, Universal, h, Session } from 'koishi'
-import { Event, Events, Friend, Group, LoginInfo, GroupMember, IncomingMessage } from './types'
+import { Context, Universal, h } from 'koishi'
 import { MilkyBot } from './bot'
+import { Event, FriendEntity, GetLoginInfoOutput, GroupEntity, GroupMemberEntity, IncomingMessage } from '@saltify/milky-types'
 
-export function decodeGuild(group: Group): Universal.Guild {
+export function decodeGuild(group: GroupEntity): Universal.Guild {
   return {
     id: String(group.group_id),
-    name: group.name,
+    name: group.group_name,
     avatar: `https://p.qlogo.cn/gh/${group.group_id}/${group.group_id}/640`
   }
 }
 
-export function decodeGuildMember(member: GroupMember): Universal.GuildMember {
+export function decodeGuildMember(member: GroupMemberEntity): Universal.GuildMember {
   return {
     user: {
       id: String(member.user_id),
@@ -23,7 +23,7 @@ export function decodeGuildMember(member: GroupMember): Universal.GuildMember {
   }
 }
 
-export function decodeUser(friend: Friend): Universal.User {
+export function decodeUser(friend: FriendEntity): Universal.User {
   return {
     id: String(friend.user_id),
     name: friend.nickname,
@@ -31,7 +31,7 @@ export function decodeUser(friend: Friend): Universal.User {
   }
 }
 
-export function decodeLoginUser(user: LoginInfo): Universal.User {
+export function decodeLoginUser(user: GetLoginInfoOutput): Universal.User {
   return {
     id: String(user.uin),
     name: user.nickname,
@@ -89,28 +89,33 @@ export async function decodeMessage<C extends Context = Context>(
   message.content = elements.join('')
   message.id = input.message_seq.toString()
 
+  payload.timestamp = input.time * 1000
   payload.channel = {
     id: channelId,
-    name: guildId ? input.group.name : input.friend?.nickname,
     type: guildId ? Universal.Channel.Type.TEXT : Universal.Channel.Type.DIRECT
-  }
-  payload.guild = guildId && {
-    id: guildId,
-    name: input.group.name,
-    avatar: `https://p.qlogo.cn/gh/${guildId}/${guildId}/640`
   }
   payload.user = {
     id: input.sender_id.toString(),
-    name: guildId ? input.group_member.nickname : input.friend?.nickname,
     avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`
   }
-  payload.member = guildId && {
-    user: payload.user,
-    nick: input.group_member.card || input.group_member.nickname,
-    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`,
-    joinedAt: input.group_member.join_time * 1000
+  if (input.message_scene === 'group') {
+    payload.guild = {
+      id: guildId,
+      name: input.group.group_name,
+      avatar: `https://p.qlogo.cn/gh/${guildId}/${guildId}/640`
+    }
+    payload.member = {
+      user: payload.user,
+      nick: input.group_member.card || input.group_member.nickname,
+      avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`,
+      joinedAt: input.group_member.join_time * 1000
+    }
+    payload.channel.name = input.group.group_name
+    payload.user.name = input.group_member.nickname
+  } else if (input.message_scene === 'friend') {
+    payload.channel.name = input.friend.nickname
+    payload.user.name = input.friend.nickname
   }
-  payload.timestamp = input.time * 1000
   return message
 }
 
