@@ -1,8 +1,9 @@
-import { Bot, Context, Schema, HTTP, Dict } from 'koishi'
+import { Bot, Context, Schema, HTTP, Dict, Universal } from 'koishi'
 import { WsClient } from './ws'
 import { MilkyMessageEncoder } from './message'
-import { decodeGuild, decodeGuildMember, decodeLoginUser, decodeMessage, decodeUser } from './utils'
+import { decodeFriend, decodeGroupChannel, decodeGuild, decodeGuildMember, decodeLoginUser, decodeMessage, decodePrivateChannel, decodeUser, getSceneAndPeerId } from './utils'
 import { Internal } from './internal'
+import { Direction, Order } from '@satorijs/protocol'
 
 export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Config> {
   static inject = {
@@ -31,10 +32,30 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
     ctx.plugin(WsClient, this)
   }
 
-  async getLogin() {
-    const data = await this.internal.getLoginInfo()
-    this.user = decodeLoginUser(data)
-    return this.toJSON()
+  async getChannel(channelId: string, guildId?: string) {
+    const [scene, peerId] = getSceneAndPeerId(channelId)
+    if (scene === 'group') {
+      const data = await this.internal.getGroupInfo(peerId)
+      return decodeGroupChannel(data.group)
+    } else {
+      const data = await this.internal.getUserProfile(peerId)
+      return decodePrivateChannel(data, channelId)
+    }
+  }
+
+  async getChannelList(guildId: string, next?: string) {
+    return { data: [await this.getChannel(guildId)] }
+  }
+
+  async createDirectChannel(userId: string) {
+    return { id: `private:${userId}`, type: Universal.Channel.Type.DIRECT }
+  }
+
+  async muteChannel(channelId: string, guildId?: string, enable?: boolean) {
+    const [scene, peerId] = getSceneAndPeerId(channelId)
+    if (scene === 'group') {
+      await this.internal.setGroupWholeMute(peerId, enable)
+    }
   }
 
   async getGuild(guildId: string) {
@@ -47,6 +68,15 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
     return { data: data.groups.map(decodeGuild) }
   }
 
+  async handleGuildRequest(messageId: string, approve: boolean, comment?: string) {
+    const [groupId, invitationSeq] = messageId.split('|')
+    if (approve) {
+      await this.internal.acceptGroupInvitation(+groupId, +invitationSeq)
+    } else {
+      await this.internal.rejectGroupInvitation(+groupId, +invitationSeq)
+    }
+  }
+
   async getGuildMember(guildId: string, userId: string) {
     const data = await this.internal.getGroupMemberInfo(+guildId, +userId)
     return decodeGuildMember(data.member)
@@ -57,26 +87,83 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
     return { data: data.members.map(decodeGuildMember) }
   }
 
-  async getFriendList(next?: string) {
-    const data = await this.internal.getFriendList()
-    return { data: data.friends.map(decodeUser) }
+  async kickGuildMember(guildId: string, userId: string, permanent?: boolean) {
+    await this.internal.kickGroupMember(+guildId, +userId, permanent)
+  }
+
+  async muteGuildMember(guildId: string, userId: string, duration: number, reason?: string) {
+    await this.internal.setGroupMemberMute(+guildId, +userId, Math.round(duration / 1000))
+  }
+
+  async handleGuildMemberRequest(messageId: string, approve: boolean, comment?: string) {
+    const [notificationSeq, isFiltered] = messageId.split('|')
+    if (approve) {
+      await this.internal.acceptGroupRequest(+notificationSeq, Boolean(+isFiltered))
+    } else {
+      await this.internal.rejectGroupRequest(+notificationSeq, Boolean(+isFiltered), comment)
+    }
+  }
+
+  async getLogin() {
+    const data = await this.internal.getLoginInfo()
+    this.user = decodeLoginUser(data)
+    return this.toJSON()
   }
 
   async getMessage(channelId: string, messageId: string) {
-    let scene: 'friend' | 'group' | 'temp'
-    let peerId: number
-    if (channelId.startsWith('private:temp_')) {
-      scene = 'temp'
-      peerId = +channelId.replace('private:temp_', '')
-    } else if (channelId.startsWith('private:')) {
-      scene = 'friend'
-      peerId = +channelId.replace('private:', '')
-    } else {
-      scene = 'group'
-      peerId = +channelId
-    }
+    const [scene, peerId] = getSceneAndPeerId(channelId)
     const data = await this.internal.getMessage(scene, peerId, +messageId)
     return await decodeMessage(this, data.message)
+  }
+
+  async deleteMessage(channelId: string, messageId: string) {
+    const [scene, peerId] = getSceneAndPeerId(channelId)
+    if (scene === 'group') {
+      await this.internal.recallGroupMessage(peerId, +messageId)
+    } else {
+      await this.internal.recallPrivateMessage(peerId, +messageId)
+    }
+  }
+
+  async getMessageList(channelId: string, next?: string, direction: Direction = 'before', limit?: number, order?: Order) {
+    if (direction !== 'before') throw new Error('Unsupported direction.')
+    const [scene, peerId] = getSceneAndPeerId(channelId)
+    const { messages, next_message_seq } = await this.internal.getHistoryMessages(scene, peerId, next && +next, limit)
+    // 从旧到新
+    return { data: await Promise.all(messages.map(item => decodeMessage(this, item))), next: String(next_message_seq) }
+  }
+
+  async createReaction(channelId: string, messageId: string, emoji: string) {
+    const [scene, peerId] = getSceneAndPeerId(channelId)
+    if (scene === 'group') {
+      await this.internal.sendGroupMessageReaction(peerId, +messageId, emoji)
+    }
+  }
+
+  async deleteReaction(channelId: string, messageId: string, emoji: string, userId?: string) {
+    const [scene, peerId] = getSceneAndPeerId(channelId)
+    if (scene === 'group') {
+      await this.internal.sendGroupMessageReaction(peerId, +messageId, emoji, false)
+    }
+  }
+
+  async getUser(userId: string, guildId?: string) {
+    const data = await this.internal.getUserProfile(+userId)
+    return decodeUser(data, userId)
+  }
+
+  async getFriendList(next?: string) {
+    const data = await this.internal.getFriendList()
+    return { data: data.friends.map(decodeFriend) }
+  }
+
+  async handleFriendRequest(messageId: string, approve: boolean, comment?: string) {
+    const [initiatorUid, isFiltered] = messageId.split('|')
+    if (approve) {
+      await this.internal.acceptFriendRequest(initiatorUid, Boolean(+isFiltered))
+    } else {
+      await this.internal.rejectFriendRequest(initiatorUid, Boolean(+isFiltered), comment)
+    }
   }
 }
 

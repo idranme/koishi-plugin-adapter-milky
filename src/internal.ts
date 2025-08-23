@@ -1,5 +1,5 @@
 import { Dict, HTTP } from 'koishi'
-import { GetCookiesOutput, GetCSRFTokenOutput, GetForwardedMessagesOutput, GetFriendInfoOutput, GetFriendListOutput, GetFriendRequestsOutput, GetGroupAnnouncementListOutput, GetGroupEssenceMessagesOutput, GetGroupInfoOutput, GetGroupListOutput, GetGroupMemberInfoOutput, GetGroupMemberListOutput, GetGroupNotificationsOutput, GetHistoryMessagesOutput, GetImplInfoOutput, GetLoginInfoOutput, GetMessageOutput, GetResourceTempUrlOutput, GetUserProfileOutput, OutgoingSegment, SendGroupMessageOutput, SendPrivateMessageOutput, UploadGroupFileOutput, UploadPrivateFileOutput } from '@saltify/milky-types'
+import { CreateGroupFolderOutput, GetCookiesOutput, GetCSRFTokenOutput, GetForwardedMessagesOutput, GetFriendInfoOutput, GetFriendListOutput, GetFriendRequestsOutput, GetGroupAnnouncementListOutput, GetGroupEssenceMessagesOutput, GetGroupFileDownloadUrlOutput, GetGroupFilesOutput, GetGroupInfoOutput, GetGroupListOutput, GetGroupMemberInfoOutput, GetGroupMemberListOutput, GetGroupNotificationsOutput, GetHistoryMessagesOutput, GetImplInfoOutput, GetLoginInfoOutput, GetMessageOutput, GetPrivateFileDownloadUrlOutput, GetResourceTempUrlOutput, GetUserProfileOutput, OutgoingSegment, SendGroupMessageOutput, SendPrivateMessageOutput, UploadGroupFileOutput, UploadPrivateFileOutput } from '@saltify/milky-types'
 
 interface ApiResponse<T = Dict> {
   status: 'ok' | 'failed'
@@ -257,6 +257,51 @@ export class Internal {
 
   /** 上传群文件 */
   async uploadGroupFile(group_id: number, parent_folder_id: string | undefined, file_uri: string, file_name: string) {
-    return await this.#request<UploadGroupFileOutput>('/api/upload_group_file', { group_id, file_uri, file_name, parent_folder_id })
+    return await this.#request<UploadGroupFileOutput>('/api/upload_group_file', { group_id, parent_folder_id, file_uri, file_name })
+  }
+
+  /** 获取私聊文件下载链接 */
+  async getPrivateFileDownloadUrl(user_id: number, file_id: string, file_hash: string) {
+    return await this.#request<GetPrivateFileDownloadUrlOutput>('/api/get_private_file_download_url', { user_id, file_id, file_hash })
+  }
+
+  /** 获取群文件下载链接 */
+  async getGroupFileDownloadUrl(group_id: number, file_id: string) {
+    return await this.#request<GetGroupFileDownloadUrlOutput>('/api/get_group_file_download_url', { group_id, file_id })
+  }
+
+  /** 获取群文件列表 */
+  async getGroupFiles(group_id: number, parent_folder_id?: string) {
+    return await this.#request<GetGroupFilesOutput>('/api/get_group_files', { group_id, parent_folder_id })
+  }
+
+  /** 移动群文件 */
+  async moveGroupFile(group_id: number, file_id: string, parent_folder_id?: string, target_folder_id?: string) {
+    return await this.#request<{}>('/api/move_group_file', { group_id, file_id, parent_folder_id, target_folder_id })
+  }
+
+  /** 重命名群文件 */
+  async renameGroupFile(group_id: number, file_id: string, parent_folder_id: string | undefined, new_file_name: string) {
+    return await this.#request<{}>('/api/rename_group_file', { group_id, file_id, parent_folder_id, new_file_name })
+  }
+
+  /** 删除群文件 */
+  async deleteGroupFile(group_id: number, file_id: string) {
+    return await this.#request<{}>('/api/delete_group_file', { group_id, file_id })
+  }
+
+  /** 创建群文件夹 */
+  async createGroupFolder(group_id: number, folder_name: string) {
+    return await this.#request<CreateGroupFolderOutput>('/api/create_group_folder', { group_id, folder_name })
+  }
+
+  /** 重命名群文件夹 */
+  async renameGroupFolder(group_id: number, folder_id: string, new_folder_name: string) {
+    return await this.#request<{}>('/api/rename_group_folder', { group_id, folder_id, new_folder_name })
+  }
+
+  /** 删除群文件夹 */
+  async deleteGroupFolder(group_id: number, folder_id: string) {
+    return await this.#request<{}>('/api/delete_group_folder', { group_id, folder_id })
   }
 }
