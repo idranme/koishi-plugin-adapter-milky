@@ -96,11 +96,11 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
   }
 
   async handleGuildMemberRequest(messageId: string, approve: boolean, comment?: string) {
-    const [notificationSeq, isFiltered] = messageId.split('|')
+    const [notificationSeq, notificationType, groupId, isFiltered] = messageId.split('|')
     if (approve) {
-      await this.internal.acceptGroupRequest(+notificationSeq, Boolean(+isFiltered))
+      await this.internal.acceptGroupRequest(+notificationSeq, notificationType as 'join_request' | 'invited_join_request', +groupId, Boolean(+isFiltered))
     } else {
-      await this.internal.rejectGroupRequest(+notificationSeq, Boolean(+isFiltered), comment)
+      await this.internal.rejectGroupRequest(+notificationSeq, notificationType as 'join_request' | 'invited_join_request', +groupId, Boolean(+isFiltered), comment)
     }
   }
 

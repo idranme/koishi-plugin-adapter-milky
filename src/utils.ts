@@ -31,11 +31,12 @@ export function decodeGuildMember(member: GroupMemberEntity): Universal.GuildMem
     user: {
       id: String(member.user_id),
       name: member.nickname,
-      avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${member.user_id}&spec=640`
+      avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${member.user_id}&spec=640`
     },
     nick: member.card || member.nickname,
-    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${member.user_id}&spec=640`,
-    joinedAt: member.join_time * 1000
+    avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${member.user_id}&spec=640`,
+    joinedAt: member.join_time * 1000,
+    roles: [member.role]
   }
 }
 
@@ -43,7 +44,7 @@ export function decodeUser(user: GetUserProfileOutput, id: string): Universal.Us
   return {
     id,
     name: user.nickname,
-    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${id}&spec=640`
+    avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${id}&spec=640`
   }
 }
 
@@ -51,7 +52,7 @@ export function decodeFriend(friend: FriendEntity): Universal.User {
   return {
     id: String(friend.user_id),
     name: friend.nickname,
-    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${friend.user_id}&spec=640`
+    avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${friend.user_id}&spec=640`
   }
 }
 
@@ -59,7 +60,7 @@ export function decodeLoginUser(user: GetLoginInfoOutput): Universal.User {
   return {
     id: String(user.uin),
     name: user.nickname,
-    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${user.uin}&spec=640`
+    avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${user.uin}&spec=640`
   }
 }
 
@@ -95,7 +96,10 @@ export async function decodeMessage<C extends Context = Context>(
         elements.push(h('at', { type: 'all' }))
         break
       case 'reply':
-        message.quote = await bot.getMessage(channelId, data.message_seq.toString())
+        message.quote = await bot.getMessage(channelId, String(data.message_seq)).catch(error => {
+          bot.logger.warn(error)
+          return undefined
+        })
         break
       case 'image':
         elements.push(h.image(data.temp_url))
@@ -120,7 +124,7 @@ export async function decodeMessage<C extends Context = Context>(
   }
   payload.user = {
     id: input.sender_id.toString(),
-    avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`
+    avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`
   }
   if (input.message_scene === 'group') {
     payload.guild = {
@@ -131,7 +135,7 @@ export async function decodeMessage<C extends Context = Context>(
     payload.member = {
       user: payload.user,
       nick: input.group_member.card || input.group_member.nickname,
-      avatar: `http://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`,
+      avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`,
       joinedAt: input.group_member.join_time * 1000
     }
     payload.channel.name = input.group.group_name
@@ -169,6 +173,7 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
       session.userId = String(body.data.initiator_id)
       session.channelId = `private:${session.userId}`
       session.messageId = `${body.data.initiator_uid}|0`
+      session.content = body.data.comment
       session.timestamp = body.time * 1000
       break
     }
@@ -177,7 +182,8 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
       session.userId = String(body.data.initiator_id)
       session.channelId = String(body.data.group_id)
       session.guildId = String(body.data.group_id)
-      session.messageId = `${body.data.notification_seq}|${body.data.is_filtered ? 1 : 0}`
+      session.messageId = `${body.data.notification_seq}|join_request|${body.data.group_id}|${body.data.is_filtered ? 1 : 0}`
+      session.content = body.data.comment
       session.timestamp = body.time * 1000
       break
     }
@@ -186,7 +192,8 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
       session.userId = String(body.data.target_user_id)
       session.channelId = String(body.data.group_id)
       session.guildId = String(body.data.group_id)
-      session.messageId = `${body.data.notification_seq}|0`
+      session.messageId = `${body.data.notification_seq}|invited_join_request|${body.data.group_id}|0`
+      session.content = ''
       session.timestamp = body.time * 1000
       break
     }
@@ -196,6 +203,7 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
       session.channelId = String(body.data.group_id)
       session.guildId = String(body.data.group_id)
       session.messageId = `${body.data.invitation_seq}|0`
+      session.content = ''
       session.timestamp = body.time * 1000
       break
     }
