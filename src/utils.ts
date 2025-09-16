@@ -127,17 +127,8 @@ export async function decodeMessage<C extends Context = Context>(
     avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`
   }
   if (input.message_scene === 'group') {
-    payload.guild = {
-      id: guildId,
-      name: input.group.group_name,
-      avatar: `https://p.qlogo.cn/gh/${guildId}/${guildId}/640`
-    }
-    payload.member = {
-      user: payload.user,
-      nick: input.group_member.card || input.group_member.nickname,
-      avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${input.sender_id}&spec=640`,
-      joinedAt: input.group_member.join_time * 1000
-    }
+    payload.guild = decodeGuild(input.group)
+    payload.member = decodeGuildMember(input.group_member)
     payload.channel.name = input.group.group_name
     payload.user.name = input.group_member.nickname
   } else if (input.message_scene === 'friend') {
