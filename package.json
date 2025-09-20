@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-adapter-milky",
   "description": "Milky Protocol Adapter for Koishi",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -27,7 +27,7 @@
     "koishi": "^4.17.7"
   },
   "devDependencies": {
-    "@saltify/milky-types": "^1.0.0-draft.14"
+    "@saltify/milky-types": "^1.0.0-draft.19"
   },
   "koishi": {
     "browser": true,

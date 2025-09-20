@@ -1,5 +1,5 @@
 import { Dict, HTTP } from 'koishi'
-import { CreateGroupFolderOutput, GetCookiesOutput, GetCSRFTokenOutput, GetForwardedMessagesOutput, GetFriendInfoOutput, GetFriendListOutput, GetFriendRequestsOutput, GetGroupAnnouncementListOutput, GetGroupEssenceMessagesOutput, GetGroupFileDownloadUrlOutput, GetGroupFilesOutput, GetGroupInfoOutput, GetGroupListOutput, GetGroupMemberInfoOutput, GetGroupMemberListOutput, GetGroupNotificationsOutput, GetHistoryMessagesOutput, GetImplInfoOutput, GetLoginInfoOutput, GetMessageOutput, GetPrivateFileDownloadUrlOutput, GetResourceTempUrlOutput, GetUserProfileOutput, OutgoingSegment, SendGroupMessageOutput, SendPrivateMessageOutput, UploadGroupFileOutput, UploadPrivateFileOutput } from '@saltify/milky-types'
+import { CreateGroupFolderOutput, GetCookiesOutput, GetCSRFTokenOutput, GetForwardedMessagesOutput, GetFriendInfoOutput, GetFriendListOutput, GetFriendRequestsOutput, GetGroupAnnouncementsOutput, GetGroupEssenceMessagesOutput, GetGroupFileDownloadUrlOutput, GetGroupFilesOutput, GetGroupInfoOutput, GetGroupListOutput, GetGroupMemberInfoOutput, GetGroupMemberListOutput, GetGroupNotificationsOutput, GetHistoryMessagesOutput, GetImplInfoOutput, GetLoginInfoOutput, GetMessageOutput, GetPrivateFileDownloadUrlOutput, GetResourceTempUrlOutput, GetUserProfileOutput, OutgoingSegment, SendGroupMessageOutput, SendPrivateMessageOutput, UploadGroupFileOutput, UploadPrivateFileOutput } from '@saltify/milky-types'
 
 interface ApiResponse<T = Dict> {
   status: 'ok' | 'failed'
@@ -186,8 +186,8 @@ export class Internal {
   }
 
   /** 获取群公告列表 */
-  async getGroupAnnouncementList(group_id: number) {
-    return await this.request<GetGroupAnnouncementListOutput>('/api/get_group_announcement_list', { group_id })
+  async getGroupAnnouncements(group_id: number) {
+    return await this.request<GetGroupAnnouncementsOutput>('/api/get_group_announcements', { group_id })
   }
 
   /** 发送群公告 */
