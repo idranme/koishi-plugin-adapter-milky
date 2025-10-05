@@ -86,29 +86,57 @@ export async function decodeMessage<C extends Context = Context>(
   for (const segment of input.segments) {
     const { type, data } = segment
     switch (type) {
-      case 'text':
+      case 'text': {
         elements.push(h.text(data.text))
+      }
         break
-      case 'mention':
+      case 'mention': {
         elements.push(h.at(data.user_id.toString()))
+      }
         break
-      case 'mention_all':
+      case 'mention_all': {
         elements.push(h('at', { type: 'all' }))
+      }
         break
-      case 'reply':
+      case 'reply': {
         message.quote = await bot.getMessage(channelId, String(data.message_seq)).catch(error => {
           bot.logger.warn(error)
           return undefined
         })
+      }
         break
-      case 'image':
-        elements.push(h.image(data.temp_url))
+      case 'image': {
+        elements.push(h.image(data.temp_url, {
+          width: data.width,
+          height: data.height
+        }))
+      }
         break
-      case 'record':
-        elements.push(h.audio(data.temp_url))
+      case 'record': {
+        elements.push(h.audio(data.temp_url, {
+          duration: data.duration
+        }))
+      }
         break
-      case 'video':
-        elements.push(h.video(data.temp_url))
+      case 'video': {
+        elements.push(h.video(data.temp_url, {
+          width: data.width,
+          height: data.height,
+          duration: data.duration
+        }))
+      }
+        break
+      case 'file': {
+        let src: string
+        if (data.file_hash) {
+          src = (await bot.internal.getPrivateFileDownloadUrl(input.peer_id, data.file_id, data.file_hash)).download_url
+        } else {
+          src = (await bot.internal.getGroupFileDownloadUrl(input.peer_id, data.file_id)).download_url
+        }
+        elements.push(h.file(src, {
+          title: data.file_name
+        }))
+      }
         break
     }
   }
