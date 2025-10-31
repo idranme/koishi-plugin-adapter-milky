@@ -242,6 +242,15 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
       session.timestamp = body.time * 1000
       break
     }
+    case 'group_message_reaction': {
+      session.type = body.data.is_add ? 'reaction-added' : 'reaction-removed'
+      session.userId = String(body.data.user_id)
+      session.guildId = String(body.data.group_id)
+      session.channelId = String(body.data.group_id)
+      session.content = body.data.face_id
+      session.messageId = String(body.data.message_seq)
+      session.isDirect = false
+    }
   }
 
   if (session.type) return session
