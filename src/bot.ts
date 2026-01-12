@@ -176,7 +176,7 @@ export namespace MilkyBot {
     Schema.object({
       token: Schema.string().description('API 访问令牌。').role('secret')
     }),
-    HTTP.createConfig('http://127.0.0.1:3000/'),
+    HTTP.createConfig('http://127.0.0.1:3000'),
     WsClient.Options
   ])
 }

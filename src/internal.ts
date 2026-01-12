@@ -1,5 +1,5 @@
 import { Dict, HTTP } from 'koishi'
-import { CreateGroupFolderOutput, GetCookiesOutput, GetCSRFTokenOutput, GetForwardedMessagesOutput, GetFriendInfoOutput, GetFriendListOutput, GetFriendRequestsOutput, GetGroupAnnouncementsOutput, GetGroupEssenceMessagesOutput, GetGroupFileDownloadUrlOutput, GetGroupFilesOutput, GetGroupInfoOutput, GetGroupListOutput, GetGroupMemberInfoOutput, GetGroupMemberListOutput, GetGroupNotificationsOutput, GetHistoryMessagesOutput, GetImplInfoOutput, GetLoginInfoOutput, GetMessageOutput, GetPrivateFileDownloadUrlOutput, GetResourceTempUrlOutput, GetUserProfileOutput, OutgoingSegment, SendGroupMessageOutput, SendPrivateMessageOutput, UploadGroupFileOutput, UploadPrivateFileOutput } from '@saltify/milky-types'
+import { CreateGroupFolderOutput, GetCookiesOutput, GetCSRFTokenOutput, GetCustomFaceUrlListOutput, GetForwardedMessagesOutput, GetFriendInfoOutput, GetFriendListOutput, GetFriendRequestsOutput, GetGroupAnnouncementsOutput, GetGroupEssenceMessagesOutput, GetGroupFileDownloadUrlOutput, GetGroupFilesOutput, GetGroupInfoOutput, GetGroupListOutput, GetGroupMemberInfoOutput, GetGroupMemberListOutput, GetGroupNotificationsOutput, GetHistoryMessagesOutput, GetImplInfoOutput, GetLoginInfoOutput, GetMessageOutput, GetPrivateFileDownloadUrlOutput, GetResourceTempUrlOutput, GetUserProfileOutput, OutgoingSegment, SendGroupMessageOutput, SendPrivateMessageOutput, UploadGroupFileOutput, UploadPrivateFileOutput } from '@saltify/milky-types'
 
 interface ApiResponse<T = Dict> {
   status: 'ok' | 'failed'
@@ -65,6 +65,26 @@ export class Internal {
     return await this.request<GetGroupMemberInfoOutput>('/api/get_group_member_info', { group_id, user_id, no_cache })
   }
 
+  /** 设置 QQ 账号头像 */
+  async setAvatar(uri: string) {
+    return await this.request<{}>('/api/set_avatar', { uri })
+  }
+
+  /** 设置 QQ 账号昵称 */
+  async setNickname(new_nickname: string) {
+    return await this.request<{}>('/api/set_nickname', { new_nickname })
+  }
+
+  /** 设置 QQ 账号个性签名 */
+  async setBio(new_bio: string) {
+    return await this.request<{}>('/api/set_bio', { new_bio })
+  }
+
+  /** 获取自定义表情 URL 列表 */
+  async getCustomFaceUrlList() {
+    return await this.request<GetCustomFaceUrlListOutput>('/api/get_custom_face_url_list', {})
+  }
+
   /** 获取 Cookies */
   async getCookies(domain: string) {
     return await this.request<GetCookiesOutput>('/api/get_cookies', { domain })
@@ -128,6 +148,11 @@ export class Internal {
   /** 发送名片点赞 */
   async sendProfileLike(user_id: number, count?: number) {
     return await this.request<{}>('/api/send_profile_like', { user_id, count })
+  }
+
+  /** 删除好友 */
+  async deleteFriend(user_id: number) {
+    return await this.request<{}>('/api/delete_friend', { user_id })
   }
 
   /** 获取好友请求列表 */
