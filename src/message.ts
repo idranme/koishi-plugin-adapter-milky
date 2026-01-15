@@ -12,9 +12,8 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
     if (!this.segments.length) return
     if (this.pLength === this.segments.length) {
       this.segments.pop()
-      this.pLength = undefined
     }
-    let resp: { message_seq: number, time: number, client_seq?: number }
+    let resp: { message_seq: number, time: number }
     if (this.channelId.startsWith(PRIVATE_PFX)) {
       let userId = this.channelId.slice(PRIVATE_PFX.length)
       if (userId.startsWith('temp_')) {
@@ -33,6 +32,7 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
     session.app.emit(session, 'send', session)
     this.results.push(session.event.message)
     this.segments = []
+    this.pLength = undefined
   }
 
   private text(text: string) {
