@@ -5,9 +5,10 @@ import { Event } from '@saltify/milky-types'
 
 export class WsClient<C extends Context = Context> extends Adapter.WsClient<C, MilkyBot<C>> {
   async prepare() {
-    let url = this.bot.config.endpoint.replace('http://', 'ws://').replace('https://', 'wss://') + '/event'
+    const { protocol, host } = new URL(this.bot.config.endpoint)
+    let url = (protocol === 'https:' ? 'wss://' : 'ws://') + host + '/event'
     if (this.bot.config.token !== undefined && this.bot.config.token !== '') {
-      url = `${url}?access_token=${this.bot.config.token}`
+      url = `${url}?access_token=${encodeURIComponent(this.bot.config.token)}`
     }
     return this.bot.http.ws(url)
   }
