@@ -6,8 +6,14 @@ export const PRIVATE_PFX = 'private:'
 
 export class MilkyMessageEncoder<C extends Context = Context> extends MessageEncoder<C, MilkyBot<C>> {
   private segments: OutgoingSegment[] = []
+  private pLength: number | undefined
 
   async flush() {
+    if (!this.segments.length) return
+    if (this.pLength === this.segments.length) {
+      this.segments.pop()
+      this.pLength = undefined
+    }
     let resp: { message_seq: number, time: number, client_seq?: number }
     if (this.channelId.startsWith(PRIVATE_PFX)) {
       let userId = this.channelId.slice(PRIVATE_PFX.length)
@@ -29,15 +35,14 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
     this.segments = []
   }
 
+  private text(text: string) {
+    return this.segments.push({ type: 'text', data: { text } })
+  }
+
   async visit(element: h) {
     const { type, attrs, children } = element
     if (type === 'text') {
-      this.segments.push({
-        type: 'text',
-        data: {
-          text: attrs.content
-        }
-      })
+      this.text(attrs.content)
     } else if (type === 'at') {
       if (attrs.type === 'all') {
         this.segments.push({
@@ -52,8 +57,11 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
           }
         })
       }
+    } else if (type === 'a') {
+      await this.render(children)
+      this.text(`（${attrs.href}）`)
     } else if (type === 'img' || type === 'image') {
-      let uri = attrs.src
+      let uri = attrs.src ?? attrs.url
       const cap = /^data:([\w/.+-]+);base64,/.exec(uri)
       if (cap) uri = 'base64://' + uri.slice(cap[0].length)
       this.segments.push({
@@ -64,7 +72,8 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
         }
       })
     } else if (type === 'audio') {
-      let uri = attrs.src
+      await this.flush()
+      let uri = attrs.src ?? attrs.url
       const cap = /^data:([\w/.+-]+);base64,/.exec(uri)
       if (cap) uri = 'base64://' + uri.slice(cap[0].length)
       this.segments.push({
@@ -73,6 +82,36 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
           uri
         }
       })
+    } else if (type === 'video') {
+      await this.flush()
+      let uri = attrs.src ?? attrs.url
+      const cap = /^data:([\w/.+-]+);base64,/.exec(uri)
+      if (cap) uri = 'base64://' + uri.slice(cap[0].length)
+      let thumbUri = attrs.poster
+      const thumbCap = /^data:([\w/.+-]+);base64,/.exec(thumbUri)
+      if (thumbCap) thumbUri = 'base64://' + thumbUri.slice(thumbCap[0].length)
+      this.segments.push({
+        type: 'video',
+        data: {
+          uri,
+          thumb_uri: thumbUri
+        }
+      })
+    } else if (type === 'br') {
+      this.text('\n')
+    } else if (type === 'p') {
+      const prev = this.segments.at(-1)
+      if (prev) {
+        if (prev.type === 'text') {
+          if (!prev.data.text.endsWith('\n')) {
+            prev.data.text += '\n'
+          }
+        } else {
+          this.text('\n')
+        }
+      }
+      await this.render(children)
+      this.pLength = this.text('\n')
     } else if (type === 'quote') {
       this.segments.push({
         type: 'reply',
