@@ -1,7 +1,7 @@
 import { Bot, Context, Schema, HTTP, Dict, Universal } from 'koishi'
 import { WsClient } from './ws'
 import { MilkyMessageEncoder } from './message'
-import { decodeFriend, decodeGroupChannel, decodeGuild, decodeGuildMember, decodeLoginUser, decodeMessage, decodePrivateChannel, decodeUser, getSceneAndPeerId } from './utils'
+import { decodeFriend, decodeGroupChannel, decodeGuild, decodeGuildMember, decodeLoginUser, decodeMessage, decodePrivateChannel, decodeUser, filterNullable, getSceneAndPeerId } from './utils'
 import { Internal } from './internal'
 import { Direction, Order } from '@satorijs/protocol'
 
@@ -113,7 +113,9 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
   async getMessage(channelId: string, messageId: string) {
     const [scene, peerId] = getSceneAndPeerId(channelId)
     const data = await this.internal.getMessage(scene, peerId, +messageId)
-    return await decodeMessage(this, data.message)
+    const message = await decodeMessage(this, data.message)
+    if (!message) throw new Error('Message not found.')
+    return message
   }
 
   async deleteMessage(channelId: string, messageId: string) {
@@ -130,7 +132,7 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
     const [scene, peerId] = getSceneAndPeerId(channelId)
     const { messages, next_message_seq } = await this.internal.getHistoryMessages(scene, peerId, next && +next, limit)
     // 从旧到新
-    return { data: await Promise.all(messages.map(item => decodeMessage(this, item))), next: String(next_message_seq) }
+    return { data: filterNullable(await Promise.all(messages.map(item => decodeMessage(this, item)))), next: String(next_message_seq) }
   }
 
   async createReaction(channelId: string, messageId: string, emoji: string) {

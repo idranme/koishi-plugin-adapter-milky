@@ -1,5 +1,5 @@
 import { Dict, HTTP } from 'koishi'
-import { CreateGroupFolderOutput, GetCookiesOutput, GetCSRFTokenOutput, GetCustomFaceUrlListOutput, GetForwardedMessagesOutput, GetFriendInfoOutput, GetFriendListOutput, GetFriendRequestsOutput, GetGroupAnnouncementsOutput, GetGroupEssenceMessagesOutput, GetGroupFileDownloadUrlOutput, GetGroupFilesOutput, GetGroupInfoOutput, GetGroupListOutput, GetGroupMemberInfoOutput, GetGroupMemberListOutput, GetGroupNotificationsOutput, GetHistoryMessagesOutput, GetImplInfoOutput, GetLoginInfoOutput, GetMessageOutput, GetPrivateFileDownloadUrlOutput, GetResourceTempUrlOutput, GetUserProfileOutput, OutgoingSegment, SendGroupMessageOutput, SendPrivateMessageOutput, UploadGroupFileOutput, UploadPrivateFileOutput } from '@saltify/milky-types'
+import { CreateGroupFolderOutput, GetCookiesOutput, GetCSRFTokenOutput, GetCustomFaceUrlListOutput, GetForwardedMessagesOutput, GetFriendInfoOutput, GetFriendListOutput, GetFriendRequestsOutput, GetGroupAnnouncementsOutput, GetGroupEssenceMessagesOutput, GetGroupFileDownloadUrlOutput, GetGroupFilesOutput, GetGroupInfoOutput, GetGroupListOutput, GetGroupMemberInfoOutput, GetGroupMemberListOutput, GetGroupNotificationsOutput, GetHistoryMessagesOutput, GetImplInfoOutput, GetLoginInfoOutput, GetMessageOutput, GetPeerPinsOutput, GetPrivateFileDownloadUrlOutput, GetResourceTempUrlOutput, GetUserProfileOutput, OutgoingSegment, SendGroupMessageOutput, SendPrivateMessageOutput, UploadGroupFileOutput, UploadPrivateFileOutput } from '@saltify/milky-types'
 
 interface ApiResponse<T = Dict> {
   status: 'ok' | 'failed'
@@ -63,6 +63,16 @@ export class Internal {
   /** 获取群成员信息 */
   async getGroupMemberInfo(group_id: number, user_id: number, no_cache?: boolean) {
     return await this.request<GetGroupMemberInfoOutput>('/api/get_group_member_info', { group_id, user_id, no_cache })
+  }
+
+  /** 获取置顶的好友和群列表 */
+  async getPeerPins() {
+    return await this.request<GetPeerPinsOutput>('/api/get_peer_pins', {})
+  }
+
+  /** 设置好友或群的置顶状态 */
+  async setPeerPin(message_scene: 'friend' | 'group' | 'temp', peer_id: number, is_pinned?: boolean) {
+    return await this.request<{}>('/api/set_peer_pin', { message_scene, peer_id, is_pinned })
   }
 
   /** 设置 QQ 账号头像 */

@@ -1,4 +1,4 @@
-import { Context, Universal, h } from 'koishi'
+import { Context, Universal, h, isNonNullable } from 'koishi'
 import { MilkyBot } from './bot'
 import { Event, FriendEntity, GetLoginInfoOutput, GetUserProfileOutput, GroupEntity, GroupMemberEntity, IncomingMessage } from '@saltify/milky-types'
 
@@ -68,7 +68,7 @@ export function decodeGuildChannelId(data: { message_scene: 'friend' | 'group' |
   if (data.message_scene === 'group') {
     return [String(data.peer_id), String(data.peer_id)]
   } else if (data.message_scene === 'temp') {
-    return [undefined, 'private:temp_' + data.peer_id]
+    return [undefined, 'temporary:' + data.peer_id]
   } else {
     return [undefined, 'private:' + data.peer_id]
   }
@@ -91,7 +91,7 @@ export async function decodeMessage<C extends Context = Context>(
       }
         break
       case 'mention': {
-        elements.push(h.at(data.user_id.toString()))
+        elements.push(h.at(data.user_id.toString(), { name: data.name }))
       }
         break
       case 'mention_all': {
@@ -138,8 +138,19 @@ export async function decodeMessage<C extends Context = Context>(
         }))
       }
         break
+      case 'light_app': {
+        elements.push(
+          h('milky:light-app', {
+            appName: data.app_name,
+            jsonPayload: data.json_payload
+          })
+        )
+      }
+        break
     }
   }
+
+  if (elements.length === 0) return
 
   message.elements = elements
   message.content = elements.join('')
@@ -173,7 +184,8 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
   switch (body.event_type) {
     case 'message_receive': {
       session.type = 'message'
-      await decodeMessage(bot, body.data, session.event.message = {}, session.event)
+      const message = await decodeMessage(bot, body.data, session.event.message = {}, session.event)
+      if (!message) return
       break
     }
     case 'message_recall': {
@@ -259,9 +271,9 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
 export function getSceneAndPeerId(channelId: string): ['friend' | 'group' | 'temp', number] {
   let scene: 'friend' | 'group' | 'temp'
   let peerId: number
-  if (channelId.startsWith('private:temp_')) {
+  if (channelId.startsWith('temporary:')) {
     scene = 'temp'
-    peerId = +channelId.replace('private:temp_', '')
+    peerId = +channelId.replace('temporary:', '')
   } else if (channelId.startsWith('private:')) {
     scene = 'friend'
     peerId = +channelId.replace('private:', '')
@@ -270,4 +282,8 @@ export function getSceneAndPeerId(channelId: string): ['friend' | 'group' | 'tem
     peerId = +channelId
   }
   return [scene, peerId]
+}
+
+export function filterNullable<T>(array: T[]) {
+  return array.filter(e => isNonNullable(e))
 }

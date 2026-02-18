@@ -2,8 +2,6 @@ import { Context, h, MessageEncoder } from 'koishi'
 import { MilkyBot } from './bot'
 import { OutgoingSegment } from '@saltify/milky-types'
 
-export const PRIVATE_PFX = 'private:'
-
 export class MilkyMessageEncoder<C extends Context = Context> extends MessageEncoder<C, MilkyBot<C>> {
   private segments: OutgoingSegment[] = []
   private pLength: number | undefined
@@ -14,12 +12,12 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
       this.segments.pop()
     }
     let resp: { message_seq: number, time: number }
-    if (this.channelId.startsWith(PRIVATE_PFX)) {
-      let userId = this.channelId.slice(PRIVATE_PFX.length)
-      if (userId.startsWith('temp_')) {
-        userId = this.channelId.slice('temp_'.length)
-      }
-      resp = await this.bot.internal.sendPrivateMessage(+userId, this.segments)
+    if (this.channelId.startsWith('private:')) {
+      const userId = +this.channelId.replace('private:', '')
+      resp = await this.bot.internal.sendPrivateMessage(userId, this.segments)
+    } else if (this.channelId.startsWith('temporary:')) {
+      const userId = +this.channelId.replace('temporary:', '')
+      resp = await this.bot.internal.sendPrivateMessage(userId, this.segments)
     } else {
       resp = await this.bot.internal.sendGroupMessage(+this.channelId, this.segments)
     }
@@ -117,6 +115,13 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
         type: 'reply',
         data: {
           message_seq: +attrs.id
+        }
+      })
+    } else if (type === 'milky:light-app') {
+      this.segments.push({
+        type: 'light_app',
+        data: {
+          json_payload: attrs.jsonPayload
         }
       })
     } else {
