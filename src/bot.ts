@@ -138,14 +138,16 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
   async createReaction(channelId: string, messageId: string, emoji: string) {
     const [scene, peerId] = getSceneAndPeerId(channelId)
     if (scene === 'group') {
-      await this.internal.sendGroupMessageReaction(peerId, +messageId, emoji)
+      const [reactionType, reaction] = emoji.split('|')
+      await this.internal.sendGroupMessageReaction(peerId, +messageId, reaction, reactionType as 'face' | 'emoji')
     }
   }
 
   async deleteReaction(channelId: string, messageId: string, emoji: string, userId?: string) {
     const [scene, peerId] = getSceneAndPeerId(channelId)
     if (scene === 'group') {
-      await this.internal.sendGroupMessageReaction(peerId, +messageId, emoji, false)
+      const [reactionType, reaction] = emoji.split('|')
+      await this.internal.sendGroupMessageReaction(peerId, +messageId, reaction, reactionType as 'face' | 'emoji', false)
     }
   }
 

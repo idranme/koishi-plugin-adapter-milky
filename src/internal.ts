@@ -251,8 +251,8 @@ export class Internal {
   }
 
   /** 发送群消息表情回应 */
-  async sendGroupMessageReaction(group_id: number, message_seq: number, reaction: string, is_add?: boolean) {
-    return await this.request<{}>('/api/send_group_message_reaction', { group_id, message_seq, reaction, is_add })
+  async sendGroupMessageReaction(group_id: number, message_seq: number, reaction: string, reaction_type?: 'face' | 'emoji', is_add?: boolean) {
+    return await this.request<{}>('/api/send_group_message_reaction', { group_id, message_seq, reaction, reaction_type, is_add })
   }
 
   /** 发送群戳一戳 */
