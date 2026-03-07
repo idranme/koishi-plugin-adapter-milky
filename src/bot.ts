@@ -1,4 +1,4 @@
-import { Bot, Context, Schema, HTTP, Dict, Universal } from 'koishi'
+import { Bot, Context, Schema, HTTP, Dict, Universal, isNonNullable } from 'koishi'
 import { WsClient } from './ws'
 import { MilkyMessageEncoder } from './message'
 import { decodeFriend, decodeGroupChannel, decodeGuild, decodeGuildMember, decodeLoginUser, decodeMessage, decodePrivateChannel, decodeUser, filterNullable, getSceneAndPeerId } from './utils'
@@ -47,14 +47,41 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
     return { data: [await this.getChannel(guildId)] }
   }
 
-  async createDirectChannel(userId: string) {
-    return { id: `private:${userId}`, type: Universal.Channel.Type.DIRECT }
+  async updateChannel(channelId: string, data: Partial<Universal.Channel>) {
+    if (isNonNullable(data.name)) {
+      const [scene, peerId] = getSceneAndPeerId(channelId)
+      if (scene === 'group') {
+        await this.internal.setGroupName(peerId, data.name)
+      }
+    }
   }
 
   async muteChannel(channelId: string, guildId?: string, enable?: boolean) {
     const [scene, peerId] = getSceneAndPeerId(channelId)
     if (scene === 'group') {
       await this.internal.setGroupWholeMute(peerId, enable)
+    }
+  }
+
+  async createDirectChannel(userId: string) {
+    return { id: `private:${userId}`, type: Universal.Channel.Type.DIRECT }
+  }
+
+  async getFriendList(next?: string) {
+    const data = await this.internal.getFriendList()
+    return { data: data.friends.map(decodeFriend) }
+  }
+
+  async deleteFriend(userId: string) {
+    await this.internal.deleteFriend(+userId)
+  }
+
+  async handleFriendRequest(messageId: string, approve: boolean, comment?: string) {
+    const [initiatorUid, isFiltered] = messageId.split('|')
+    if (approve) {
+      await this.internal.acceptFriendRequest(initiatorUid, Boolean(+isFiltered))
+    } else {
+      await this.internal.rejectFriendRequest(initiatorUid, Boolean(+isFiltered), comment)
     }
   }
 
@@ -135,18 +162,18 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
     return { data: filterNullable(await Promise.all(messages.map(item => decodeMessage(this, item)))), next: String(next_message_seq) }
   }
 
-  async createReaction(channelId: string, messageId: string, emoji: string) {
+  async createReaction(channelId: string, messageId: string, emojiId: string) {
     const [scene, peerId] = getSceneAndPeerId(channelId)
     if (scene === 'group') {
-      const [reactionType, reaction] = emoji.split('|')
+      const [reactionType, reaction] = emojiId.split('|')
       await this.internal.sendGroupMessageReaction(peerId, +messageId, reaction, reactionType as 'face' | 'emoji')
     }
   }
 
-  async deleteReaction(channelId: string, messageId: string, emoji: string, userId?: string) {
+  async deleteReaction(channelId: string, messageId: string, emojiId: string, userId?: string) {
     const [scene, peerId] = getSceneAndPeerId(channelId)
     if (scene === 'group') {
-      const [reactionType, reaction] = emoji.split('|')
+      const [reactionType, reaction] = emojiId.split('|')
       await this.internal.sendGroupMessageReaction(peerId, +messageId, reaction, reactionType as 'face' | 'emoji', false)
     }
   }
@@ -154,20 +181,6 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
   async getUser(userId: string, guildId?: string) {
     const data = await this.internal.getUserProfile(+userId)
     return decodeUser(data, userId)
-  }
-
-  async getFriendList(next?: string) {
-    const data = await this.internal.getFriendList()
-    return { data: data.friends.map(decodeFriend) }
-  }
-
-  async handleFriendRequest(messageId: string, approve: boolean, comment?: string) {
-    const [initiatorUid, isFiltered] = messageId.split('|')
-    if (approve) {
-      await this.internal.acceptFriendRequest(initiatorUid, Boolean(+isFiltered))
-    } else {
-      await this.internal.rejectFriendRequest(initiatorUid, Boolean(+isFiltered), comment)
-    }
   }
 }
 

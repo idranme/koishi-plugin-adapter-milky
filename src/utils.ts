@@ -33,10 +33,10 @@ export function decodeGuildMember(member: GroupMemberEntity): Universal.GuildMem
       name: member.nickname,
       avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${member.user_id}&spec=640`
     },
-    nick: member.card || member.nickname,
+    nick: member.card,
     avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${member.user_id}&spec=640`,
     joinedAt: member.join_time * 1000,
-    roles: [member.role]
+    roles: [{ id: member.role }]
   }
 }
 
@@ -48,11 +48,14 @@ export function decodeUser(user: GetUserProfileOutput, id: string): Universal.Us
   }
 }
 
-export function decodeFriend(friend: FriendEntity): Universal.User {
+export function decodeFriend(friend: FriendEntity): Universal.Friend {
   return {
-    id: String(friend.user_id),
-    name: friend.nickname,
-    avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${friend.user_id}&spec=640`
+    user: {
+      id: String(friend.user_id),
+      name: friend.nickname,
+      avatar: `https://q.qlogo.cn/headimg_dl?dst_uin=${friend.user_id}&spec=640`
+    },
+    nick: friend.remark
   }
 }
 
@@ -143,6 +146,16 @@ export async function decodeMessage<C extends Context = Context>(
           h('milky:light-app', {
             appName: data.app_name,
             jsonPayload: data.json_payload
+          })
+        )
+      }
+        break
+      case 'forward': {
+        elements.push(
+          h('milky:forward', {
+            forwardId: data.forward_id,
+            title: data.title,
+            summary: data.summary
           })
         )
       }
@@ -259,9 +272,11 @@ export async function adaptSession<C extends Context>(bot: MilkyBot<C>, body: Ev
       session.userId = String(body.data.user_id)
       session.guildId = String(body.data.group_id)
       session.channelId = String(body.data.group_id)
-      session.content = `${body.data.reaction_type}|${body.data.face_id}`
       session.messageId = String(body.data.message_seq)
       session.isDirect = false
+      session.event.emoji = {
+        id: `${body.data.reaction_type}|${body.data.face_id}`
+      }
     }
   }
 
