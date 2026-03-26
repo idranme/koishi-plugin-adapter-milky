@@ -2,15 +2,62 @@ import { Context, h, MessageEncoder } from 'koishi'
 import { MilkyBot } from './bot'
 import { OutgoingSegment } from '@saltify/milky-types'
 
+interface Author {
+  id?: string
+  name?: string
+  avatar?: string
+}
+
+class State {
+  author: Author = {}
+  segments: OutgoingSegment[] = []
+
+  constructor(public type: 'message' | 'forward') { }
+}
+
 export class MilkyMessageEncoder<C extends Context = Context> extends MessageEncoder<C, MilkyBot<C>> {
   private segments: OutgoingSegment[] = []
+  private stack: State[] = [new State('message')]
   private pLength: number | undefined
 
   async flush() {
-    if (!this.segments.length) return
     if (this.pLength === this.segments.length) {
       this.segments.pop()
     }
+
+    if (!this.segments.length && this.stack[0].type === 'message') {
+      this.segments = this.stack[0].segments
+    }
+
+    this.segments = this.segments.filter(seg => seg.type !== 'text' || seg.data.text !== '')
+    if (!this.segments.length) return
+
+    if (this.stack[0].type === 'forward') {
+      const uin = this.stack[0].author.id ?? this.bot.selfId
+      const name = this.stack[0].author.name ?? this.bot.user.name
+      if (this.stack[1].segments[0]?.type === 'forward') {
+        this.stack[1].segments[0].data.messages.push({
+          user_id: +uin,
+          sender_name: name,
+          segments: this.segments
+        })
+      } else {
+        this.stack[1].segments.push({
+          type: 'forward',
+          data: {
+            messages: [{
+              user_id: +uin,
+              sender_name: name,
+              segments: this.segments
+            }]
+          },
+        })
+      }
+
+      this.segments = []
+      return
+    }
+
     let resp: { message_seq: number, time: number }
     if (this.channelId.startsWith('private:')) {
       const userId = +this.channelId.replace('private:', '')
@@ -110,6 +157,39 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
       }
       await this.render(children)
       this.pLength = this.text('\n')
+    } else if (type === 'message') {
+      await this.flush()
+      if ('forward' in attrs) {
+        this.stack.unshift(new State('forward'))
+        await this.render(children)
+        await this.flush()
+        this.stack.shift()
+        if (this.stack.length > 1) {
+          const uin = this.stack[0].author.id ?? this.bot.selfId
+          const name = this.stack[0].author.name ?? this.bot.user.name
+          if (this.stack[1].segments[0]?.type === 'forward') {
+            this.stack[1].segments[0].data.messages.push({
+              user_id: +uin,
+              sender_name: name,
+              segments: this.stack[0].segments
+            })
+          } else {
+            this.stack[1].segments.push({
+              type: 'forward',
+              data: {
+                messages: [{
+                  user_id: +uin,
+                  sender_name: name,
+                  segments: this.stack[0].segments
+                }]
+              },
+            })
+          }
+        }
+      } else {
+        await this.render(children)
+        await this.flush()
+      }
     } else if (type === 'quote') {
       this.segments.push({
         type: 'reply',
@@ -117,6 +197,8 @@ export class MilkyMessageEncoder<C extends Context = Context> extends MessageEnc
           message_seq: +attrs.id
         }
       })
+    } else if (type === 'author') {
+      Object.assign(this.stack[0].author, attrs)
     } else if (type === 'milky:light-app') {
       this.segments.push({
         type: 'light_app',
