@@ -165,7 +165,11 @@ export class MilkyBot<C extends Context = Context> extends Bot<C, MilkyBot.Confi
   async getMessageList(channelId: string, next?: string, direction: Direction = 'before', limit?: number, order?: Order) {
     if (direction !== 'before') throw new Error('Unsupported direction.')
     const [scene, peerId] = getSceneAndPeerId(channelId)
-    const { messages, next_message_seq } = await this.internal.getHistoryMessages(scene, peerId, next ? +next : undefined, limit)
+    const decoded = next ? decodeMessageId(next) : undefined
+    if (next && !decoded) {
+      throw new Error(`Invalid message id: ${next}`)
+    }
+    const { messages, next_message_seq } = await this.internal.getHistoryMessages(scene, peerId, decoded?.messageSeq, limit)
     const nextId = next_message_seq ? encodeMessageIdByScene(scene, peerId, next_message_seq) : undefined
     // 从旧到新
     return { data: filterNullable(await Promise.all(messages.map(item => decodeMessage(this, item)))), next: nextId }
